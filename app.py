@@ -24,7 +24,6 @@ if uploaded_file is not None:
             file_name = uploaded_file.name
             
             if "260802" in file_name:
-                # 8月2日のデータ
                 raw_data = [
                     {"dai": 318, "in_raw": 4268, "out_raw": 4737, "bonus": 48, "isRed": False},
                     {"dai": 320, "in_raw": 1632, "out_raw": 1869, "bonus": 15, "isRed": False},
@@ -33,7 +32,6 @@ if uploaded_file is not None:
                     {"dai": 323, "in_raw": 3162, "out_raw": 3754, "bonus": 35, "isRed": False},
                 ]
             else:
-                # 8月1日などのデータ
                 raw_data = [
                     {"dai": 318, "in_raw": 2230, "out_raw": 1769, "bonus": 17, "isRed": False},
                     {"dai": 320, "in_raw": 2164, "out_raw": 3079, "bonus": 45, "isRed": True},
@@ -46,11 +44,7 @@ if uploaded_file is not None:
             for item in raw_data:
                 in_val = item["in_raw"] * 10
                 out_val = item["out_raw"] * 10
-                
-                # 差玉 ＝ IN － OUT
                 diff_val = in_val - out_val
-                
-                # 出率の計算 (OUT / IN) * 100
                 payout_rate = (out_val / in_val * 100) if in_val > 0 else 0
                 
                 processed_rows.append({
@@ -60,7 +54,7 @@ if uploaded_file is not None:
                     "OUT": out_val,
                     "差玉": diff_val,
                     "出率": f"{payout_rate:.2f}%",
-                    "ボーナス回数": item["bonus"],
+                    "ボーナス回数": int(item["bonus"]),  # 整数に統一
                     "設定": input_setting,
                     "稼働日": input_date,
                     "営業時間": input_hours,
@@ -83,7 +77,7 @@ if uploaded_file is not None:
             summary_data = pd.DataFrame([
                 {
                     "台番号": "合計", "機種名": "", "IN": total_in, "OUT": total_out, 
-                    "差玉": total_diff, "出率": f"{total_rate:.2f}%", "ボーナス回数": df["ボーナス回数"].sum(),
+                    "差玉": total_diff, "出率": f"{total_rate:.2f}%", "ボーナス回数": int(df["ボーナス回数"].sum()),
                     "設定": "", "稼働日": "", "営業時間": "", "備考": ""
                 },
                 {
@@ -95,23 +89,22 @@ if uploaded_file is not None:
             
             final_df = pd.concat([summary_data, df], ignore_index=True)
             
-            # --- 画面表示用のスタイリング（差玉がマイナスの文字を赤色にする） ---
-            def highlight_negative(val):
+            # --- 画面表示用のスタイリング（差玉がマイナスの「行全体」を赤字にする） ---
+            def highlight_negative_row(row):
                 try:
-                    # 数値として判定できる場合、かつ0未満（マイナス）のときに赤字にする
-                    if isinstance(val, (int, float)) and val < 0:
-                        return 'color: #ff4b4b; font-weight: bold;'
+                    diff_val = row["差玉"]
+                    # 数値として判定でき、かつマイナスの場合は行全体の文字を赤字・太字にする
+                    if isinstance(diff_val, (int, float)) and diff_val < 0:
+                        return ['color: #ff4b4b; font-weight: bold;'] * len(row)
                 except:
                     pass
-                return ''
+                return [''] * len(row)
 
-            # スタイルを適用した状態で画面に表示
-            styled_df = final_df.style.map(highlight_negative, subset=["差玉"])
+            styled_df = final_df.style.apply(highlight_negative_row, axis=1)
             
             st.success("計算が完了しました！")
             st.dataframe(styled_df)
             
-            # CSVダウンロード（通常通り出力）
             csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
             st.download_button(
                 label="変換済みCSVをダウンロード",
