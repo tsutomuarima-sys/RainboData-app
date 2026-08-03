@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime, timedelta
 from PIL import Image
 
 st.title("🌈 レインボー稼働データ・安定処理アプリ")
@@ -7,8 +8,14 @@ st.write("スロットの稼働データ画像を処理し、指定通りのフ�
 
 # --- サイドバー：日付や営業時間の入力設定 ---
 st.sidebar.header("📊 稼働条件の設定")
-input_date = st.sidebar.text_input("稼働日", value="2026/08/02")
-input_hours = st.sidebar.text_input("営業時間", value="22時～6時")
+
+# 稼働日：カレンダー選択（デフォルトは当日 - 1日）
+default_date = datetime.now().date() - timedelta(days=1)
+selected_date = st.sidebar.date_input("稼働日", value=default_date)
+input_date = selected_date.strftime("%Y/%m/%d")
+
+# 営業時間：デフォルトを「朝11時～翌朝6時」に設定
+input_hours = st.sidebar.text_input("営業時間", value="朝11時～翌朝6時")
 input_setting = st.sidebar.number_input("設定", value=4, step=1)
 input_machine = st.sidebar.text_input("機種名", value="レインボー★ビンゴ")
 
@@ -54,7 +61,7 @@ if uploaded_file is not None:
                     "OUT": out_val,
                     "差玉": diff_val,
                     "出率": f"{payout_rate:.2f}%",
-                    "ボーナス回数": f"{int(item['bonus'])}",  # 文字列として整数化
+                    "ボーナス回数": f"{int(item['bonus'])}",
                     "設定": input_setting,
                     "稼働日": input_date,
                     "営業時間": input_hours,
@@ -91,17 +98,25 @@ if uploaded_file is not None:
             
             final_df = pd.concat([summary_data, df], ignore_index=True)
             
-            # --- 画面表示用のスタイリング（差玉がマイナスの「行全体」を赤字にする） ---
-            def highlight_negative_row(row):
+            # --- 画面表示用のスタイリング（行全体の赤字 ＆ ボーナス・設定のセンター揃え） ---
+            def style_dataframe(row):
+                styles = [''] * len(row)
+                
+                # 1. マイナス行の文字を赤字・太字にする
                 try:
                     diff_val = row["差玉"]
                     if isinstance(diff_val, (int, float)) and diff_val < 0:
-                        return ['color: #ff4b4b; font-weight: bold;'] * len(row)
+                        styles = ['color: #ff4b4b; font-weight: bold;'] * len(row)
                 except:
                     pass
-                return [''] * len(row)
+                
+                return styles
 
-            styled_df = final_df.style.apply(highlight_negative_row, axis=1)
+            # ボーナス回数と設定の列をセンター揃えにするプロパティ
+            styled_df = final_df.style.apply(style_dataframe, axis=1).set_properties(
+                subset=["ボーナス回数", "設定"], 
+                props="text-align: center;"
+            )
             
             st.success("計算が完了しました！")
             st.dataframe(styled_df)
