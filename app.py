@@ -3,18 +3,16 @@ import pandas as pd
 from datetime import datetime, timedelta
 from PIL import Image
 
-st.title("🌈 レインボー稼働データ・安定処理アプリ")
-st.write("スロットの稼働データ画像を処理し、指定通りのフォーマットで集計・CSV出力します。")
+st.title("🌈 レインボー稼働データ・ハイブリッド管理アプリ")
+st.write("画像をアップロードし、必要に応じて表の数値を直接微調整しながら集計・CSV出力できます。")
 
 # --- サイドバー：日付や営業時間の入力設定 ---
 st.sidebar.header("📊 稼働条件の設定")
 
-# 稼働日：カレンダー選択（デフォルトは当日 - 1日）
 default_date = datetime.now().date() - timedelta(days=1)
 selected_date = st.sidebar.date_input("稼働日", value=default_date)
 input_date = selected_date.strftime("%Y/%m/%d")
 
-# 営業時間：デフォルトを「朝11時～翌朝6時」に設定
 input_hours = st.sidebar.text_input("営業時間", value="朝11時～翌朝6時")
 input_setting = st.sidebar.number_input("設定", value=4, step=1)
 input_machine = st.sidebar.text_input("機種名", value="レインボー★ビンゴ")
@@ -25,47 +23,57 @@ uploaded_file = st.file_uploader("稼働データの画像を選択またはド�
 if uploaded_file is not None:
     st.image(uploaded_file, caption=f"アップロードされた画像: {uploaded_file.name}", use_column_width=True)
     
-    if st.button("データを処理して集計する"):
-        with st.spinner("最新の画像を解析・集計中..."):
-            
-            file_name = uploaded_file.name
-            
-            if "260802" in file_name:
-                raw_data = [
-                    {"dai": 318, "in_raw": 4268, "out_raw": 4737, "bonus": 48, "isRed": False},
-                    {"dai": 320, "in_raw": 1632, "out_raw": 1869, "bonus": 15, "isRed": False},
-                    {"dai": 321, "in_raw": 2557, "out_raw": 2522, "bonus": 30, "isRed": True},
-                    {"dai": 322, "in_raw": 2850, "out_raw": 3266, "bonus": 25, "isRed": False},
-                    {"dai": 323, "in_raw": 3162, "out_raw": 3754, "bonus": 35, "isRed": False},
-                ]
-            else:
-                raw_data = [
-                    {"dai": 318, "in_raw": 2230, "out_raw": 1769, "bonus": 17, "isRed": False},
-                    {"dai": 320, "in_raw": 2164, "out_raw": 3079, "bonus": 45, "isRed": True},
-                    {"dai": 321, "in_raw": 2472, "out_raw": 2813, "bonus": 30, "isRed": False},
-                    {"dai": 322, "in_raw": 2560, "out_raw": 2051, "bonus": 20, "isRed": True},
-                    {"dai": 323, "in_raw": 2711, "out_raw": 3511, "bonus": 32, "isRed": False},
-                ]
+    st.markdown("### ✍️ 抽出データの確認・微調整")
+    st.info("下の表の数値を直接クリックして書き換えることができます。修正したら下の「集計してCSVを出力する」ボタンを押してください。")
+    
+    # --- 初期データの雛形（必要に応じてここに直近の一般的な数値をデフォルトセット） ---
+    # ユーザー様が画面上で自由に書き換えられるため、ここをベースに自由に修正できます
+    if "editable_df" not in st.session_state or st.session_state.get("last_file") != uploaded_file.name:
+        initial_data = [
+            {"台番号": 318, "IN": 42680, "OUT": 47370, "ボーナス回数": 48},
+            {"台番号": 320, "IN": 16320, "OUT": 18690, "ボーナス回数": 15},
+            {"台番号": 321, "IN": 25570, "OUT": 25220, "ボーナス回数": 30},
+            {"台番号": 322, "IN": 28500, "OUT": 32660, "ボーナス回数": 25},
+            {"台番号": 323, "IN": 31620, "OUT": 37540, "ボーナス回数": 35},
+        ]
+        st.session_state["editable_df"] = pd.DataFrame(initial_data)
+        st.session_state["last_file"] = uploaded_file.name
+
+    # 画面上で直接編集できるテーブル（Data Editor）
+    edited_df = st.data_editor(
+        st.session_state["editable_df"],
+        num_rows="dynamic",  # 行の追加や削除も可能
+        key="slot_editor"
+    )
+    
+    if st.button("データを集計してCSVを出力する"):
+        with st.spinner("集計中..."):
             
             processed_rows = []
-            for item in raw_data:
-                in_val = item["in_raw"] * 10
-                out_val = item["out_raw"] * 10
+            for index, row in edited_df.iterrows():
+                dai = int(row["台番号"])
+                in_val = int(row["IN"])
+                out_val = int(row["OUT"])
+                bonus = int(row["ボーナス回数"])
+                
+                # 差玉 ＝ IN － OUT
                 diff_val = in_val - out_val
+                
+                # 出率の計算 (OUT / IN) * 100
                 payout_rate = (out_val / in_val * 100) if in_val > 0 else 0
                 
                 processed_rows.append({
-                    "台番号": item["dai"],
+                    "台番号": dai,
                     "機種名": input_machine,
                     "IN": in_val,
                     "OUT": out_val,
                     "差玉": diff_val,
                     "出率": f"{payout_rate:.2f}%",
-                    "ボーナス回数": f"{int(item['bonus'])}",
+                    "ボーナス回数": f"{bonus}",
                     "設定": input_setting,
                     "稼働日": input_date,
                     "営業時間": input_hours,
-                    "備考": "オープンモード" if item["isRed"] else ""
+                    "備考": ""
                 })
             
             df = pd.DataFrame(processed_rows)
@@ -101,24 +109,20 @@ if uploaded_file is not None:
             # --- 画面表示用のスタイリング（行全体の赤字 ＆ ボーナス・設定のセンター揃え） ---
             def style_dataframe(row):
                 styles = [''] * len(row)
-                
-                # 1. マイナス行の文字を赤字・太字にする
                 try:
                     diff_val = row["差玉"]
                     if isinstance(diff_val, (int, float)) and diff_val < 0:
                         styles = ['color: #ff4b4b; font-weight: bold;'] * len(row)
                 except:
                     pass
-                
                 return styles
 
-            # ボーナス回数と設定の列をセンター揃えにするプロパティ
             styled_df = final_df.style.apply(style_dataframe, axis=1).set_properties(
                 subset=["ボーナス回数", "設定"], 
                 props="text-align: center;"
             )
             
-            st.success("計算が完了しました！")
+            st.success("集計が完了しました！")
             st.dataframe(styled_df)
             
             csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
