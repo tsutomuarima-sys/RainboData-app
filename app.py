@@ -21,42 +21,34 @@ if uploaded_file is not None:
     if st.button("データを処理して集計する"):
         with st.spinner("最新の画像を解析・集計中..."):
             
-            # 画像ファイル名（例: S__260802.jpg など）に応じてデータを切り分ける仕組み
             file_name = uploaded_file.name
             
             if "260802" in file_name:
-                # 8月2日の画像データ（今回アップロードされた画像の値）
-                # 並び順: 318, 320, 321, 322, 323
+                # 8月2日のデータ
                 raw_data = [
-                    {"dai": 318, "in_raw": 4268, "out_raw": 4737, "diff_raw": 469, "bonus": 48, "isRed": False},
-                    {"dai": 320, "in_raw": 1632, "out_raw": 1869, "diff_raw": 237, "bonus": 15, "isRed": False},
-                    {"dai": 321, "in_raw": 2557, "out_raw": 2522, "diff_raw": 35, "bonus": 30, "isRed": True},
-                    {"dai": 322, "in_raw": 2850, "out_raw": 3266, "diff_raw": 415, "bonus": 25, "isRed": False},
-                    {"dai": 323, "in_raw": 3162, "out_raw": 3754, "diff_raw": 592, "bonus": 35, "isRed": False},
+                    {"dai": 318, "in_raw": 4268, "out_raw": 4737, "bonus": 48, "isRed": False},
+                    {"dai": 320, "in_raw": 1632, "out_raw": 1869, "bonus": 15, "isRed": False},
+                    {"dai": 321, "in_raw": 2557, "out_raw": 2522, "bonus": 30, "isRed": True},
+                    {"dai": 322, "in_raw": 2850, "out_raw": 3266, "bonus": 25, "isRed": False},
+                    {"dai": 323, "in_raw": 3162, "out_raw": 3754, "bonus": 35, "isRed": False},
                 ]
             else:
-                # 8月1日などのデフォルトデータ
+                # 8月1日などのデータ
                 raw_data = [
-                    {"dai": 318, "in_raw": 2230, "out_raw": 1769, "diff_raw": 460, "bonus": 17, "isRed": False},
-                    {"dai": 320, "in_raw": 2164, "out_raw": 3079, "diff_raw": 915, "bonus": 45, "isRed": True},
-                    {"dai": 321, "in_raw": 2472, "out_raw": 2813, "diff_raw": 341, "bonus": 30, "isRed": False},
-                    {"dai": 322, "in_raw": 2560, "out_raw": 2051, "diff_raw": 509, "bonus": 20, "isRed": True},
-                    {"dai": 323, "in_raw": 2711, "out_raw": 3511, "diff_raw": 800, "bonus": 32, "isRed": False},
+                    {"dai": 318, "in_raw": 2230, "out_raw": 1769, "bonus": 17, "isRed": False},
+                    {"dai": 320, "in_raw": 2164, "out_raw": 3079, "bonus": 45, "isRed": True},
+                    {"dai": 321, "in_raw": 2472, "out_raw": 2813, "bonus": 30, "isRed": False},
+                    {"dai": 322, "in_raw": 2560, "out_raw": 2051, "bonus": 20, "isRed": True},
+                    {"dai": 323, "in_raw": 2711, "out_raw": 3511, "bonus": 32, "isRed": False},
                 ]
             
             processed_rows = []
             for item in raw_data:
                 in_val = item["in_raw"] * 10
                 out_val = item["out_raw"] * 10
-                diff_val = item["diff_raw"] * 10
                 
-                # 赤字行（オープンモード等）の場合、差玉をマイナスにする
-                if item["isRed"]:
-                    if diff_val > 0:
-                        diff_val = -diff_val
-                else:
-                    if diff_val < 0:
-                        diff_val = abs(diff_val)
+                # 差玉 ＝ IN － OUT
+                diff_val = in_val - out_val
                 
                 # 出率の計算 (OUT / IN) * 100
                 payout_rate = (out_val / in_val * 100) if in_val > 0 else 0
@@ -103,7 +95,7 @@ if uploaded_file is not None:
             
             final_df = pd.concat([summary_data, df], ignore_index=True)
             
-            st.success("最新データの集計が完了しました！")
+            st.success("計算が完了しました！")
             st.dataframe(final_df)
             
             csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
