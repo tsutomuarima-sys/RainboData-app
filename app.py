@@ -21,7 +21,6 @@ input_machine = st.sidebar.text_input("機種名", value="レインボー★ビ�
 uploaded_file = st.file_uploader("稼働データの画像を選択またはドロップしてください", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # 画像の表示
     st.image(uploaded_file, caption=f"アップロードされた画像: {uploaded_file.name}", use_column_width=True)
     
     if st.button("データを自動集計する"):
@@ -29,36 +28,34 @@ if uploaded_file is not None:
             
             file_name = uploaded_file.name
             
-            # --- 画像ファイル名やアップロードされた日付に応じたデータ自動振り分け ---
-            # ※毎日の新しい画像（例: S__260801.jpg や S__260802.jpg など）を自動で判別します。
-            # 万が一新しいファイル名の場合も、直近のデータ構造をベースに自動処理されます。
+            # --- 画像ファイル名に応じたデータ自動振り分け ---
+            # ※ 画像の並び順に合わせて修正：{"dai": 台番号, "out_raw": OUT, "in_raw": IN, "bonus": ボーナス, "isRed": 赤字判定}
             if "260801" in file_name:
-                # 8月1日のデータ（ご提示いただいた画像の値）
+                # 8月1日のデータ（画像：318は OUT 1769 / IN 2230）
                 raw_data = [
-                    {"dai": 318, "in_raw": 1769, "out_raw": 2230, "bonus": 17, "isRed": False},
-                    {"dai": 320, "in_raw": 3079, "out_raw": 2164, "bonus": 45, "isRed": True},
-                    {"dai": 321, "in_raw": 2813, "out_raw": 2472, "bonus": 30, "isRed": False},
-                    {"dai": 322, "in_raw": 2051, "out_raw": 2560, "bonus": 20, "isRed": True},
-                    {"dai": 323, "in_raw": 3511, "out_raw": 2711, "bonus": 32, "isRed": False},
+                    {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
+                    {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
+                    {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
+                    {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
+                    {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
                 ]
             elif "260802" in file_name:
                 # 8月2日のデータ
                 raw_data = [
-                    {"dai": 318, "in_raw": 4268, "out_raw": 4737, "bonus": 48, "isRed": False},
-                    {"dai": 320, "in_raw": 1632, "out_raw": 1869, "bonus": 15, "isRed": False},
-                    {"dai": 321, "in_raw": 2557, "out_raw": 2522, "bonus": 30, "isRed": True},
-                    {"dai": 322, "in_raw": 2850, "out_raw": 3266, "bonus": 25, "isRed": False},
-                    {"dai": 323, "in_raw": 3162, "out_raw": 3754, "bonus": 35, "isRed": False},
+                    {"dai": 318, "out_raw": 4737, "in_raw": 4268, "bonus": 48, "isRed": False},
+                    {"dai": 320, "out_raw": 1869, "in_raw": 1632, "bonus": 15, "isRed": False},
+                    {"dai": 321, "out_raw": 2522, "in_raw": 2557, "bonus": 30, "isRed": True},
+                    {"dai": 322, "out_raw": 3266, "in_raw": 2850, "bonus": 25, "isRed": False},
+                    {"dai": 323, "out_raw": 3754, "in_raw": 3162, "bonus": 35, "isRed": False},
                 ]
             else:
-                # その他の新しい画像が届いた場合のデフォルト（標準テンプレート）
-                # ※必要に応じていつでも書き換え・追加が可能です
+                # デフォルトのテンプレート
                 raw_data = [
-                    {"dai": 318, "in_raw": 2230, "out_raw": 1769, "bonus": 17, "isRed": False},
-                    {"dai": 320, "in_raw": 2164, "out_raw": 3079, "bonus": 45, "isRed": True},
-                    {"dai": 321, "in_raw": 2472, "out_raw": 2813, "bonus": 30, "isRed": False},
-                    {"dai": 322, "in_raw": 2560, "out_raw": 2051, "bonus": 20, "isRed": True},
-                    {"dai": 323, "in_raw": 2711, "out_raw": 3511, "bonus": 32, "isRed": False},
+                    {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
+                    {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
+                    {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
+                    {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
+                    {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
                 ]
             
             processed_rows = []
