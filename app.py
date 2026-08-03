@@ -95,9 +95,23 @@ if uploaded_file is not None:
             
             final_df = pd.concat([summary_data, df], ignore_index=True)
             
-            st.success("計算が完了しました！")
-            st.dataframe(final_df)
+            # --- 画面表示用のスタイリング（差玉がマイナスの文字を赤色にする） ---
+            def highlight_negative(val):
+                try:
+                    # 数値として判定できる場合、かつ0未満（マイナス）のときに赤字にする
+                    if isinstance(val, (int, float)) and val < 0:
+                        return 'color: #ff4b4b; font-weight: bold;'
+                except:
+                    pass
+                return ''
+
+            # スタイルを適用した状態で画面に表示
+            styled_df = final_df.style.map(highlight_negative, subset=["差玉"])
             
+            st.success("計算が完了しました！")
+            st.dataframe(styled_df)
+            
+            # CSVダウンロード（通常通り出力）
             csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
             st.download_button(
                 label="変換済みCSVをダウンロード",
