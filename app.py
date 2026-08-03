@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 
-st.title("🌈 レインボー稼働データ・OCR抽出アプリ")
+st.title("🌈 レインボー稼働データ・安定処理アプリ")
 st.write("スロットの稼働データ画像を処理し、指定通りのフォーマットで集計・CSV出力します。")
 
 # --- サイドバー：日付や営業時間の入力設定 ---
@@ -54,7 +54,7 @@ if uploaded_file is not None:
                     "OUT": out_val,
                     "差玉": diff_val,
                     "出率": f"{payout_rate:.2f}%",
-                    "ボーナス回数": int(item["bonus"]),  # 整数に統一
+                    "ボーナス回数": f"{int(item['bonus'])}",  # 文字列として整数化
                     "設定": input_setting,
                     "稼働日": input_date,
                     "営業時間": input_hours,
@@ -68,21 +68,23 @@ if uploaded_file is not None:
             total_out = df["OUT"].sum()
             total_diff = df["差玉"].sum()
             total_rate = (total_out / total_in * 100) if total_in > 0 else 0
+            total_bonus = int(df["ボーナス回数"].astype(int).sum())
             
             avg_in = int(df["IN"].mean())
             avg_out = int(df["OUT"].mean())
             avg_diff = int(df["差玉"].mean())
             avg_rate = (avg_out / avg_in * 100) if avg_in > 0 else 0
+            avg_bonus = round(df["ボーナス回数"].astype(int).mean(), 1)
             
             summary_data = pd.DataFrame([
                 {
                     "台番号": "合計", "機種名": "", "IN": total_in, "OUT": total_out, 
-                    "差玉": total_diff, "出率": f"{total_rate:.2f}%", "ボーナス回数": int(df["ボーナス回数"].sum()),
+                    "差玉": total_diff, "出率": f"{total_rate:.2f}%", "ボーナス回数": f"{total_bonus}",
                     "設定": "", "稼働日": "", "営業時間": "", "備考": ""
                 },
                 {
                     "台番号": "平均", "機種名": "", "IN": avg_in, "OUT": avg_out, 
-                    "差玉": avg_diff, "出率": f"{avg_rate:.2f}%", "ボーナス回数": round(df["ボーナス回数"].mean(), 1),
+                    "差玉": avg_diff, "出率": f"{avg_rate:.2f}%", "ボーナス回数": f"{avg_bonus}",
                     "設定": "", "稼働日": "", "営業時間": "", "備考": ""
                 }
             ])
@@ -93,7 +95,6 @@ if uploaded_file is not None:
             def highlight_negative_row(row):
                 try:
                     diff_val = row["差玉"]
-                    # 数値として判定でき、かつマイナスの場合は行全体の文字を赤字・太字にする
                     if isinstance(diff_val, (int, float)) and diff_val < 0:
                         return ['color: #ff4b4b; font-weight: bold;'] * len(row)
                 except:
