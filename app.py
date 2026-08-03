@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 
-st.title("🌈 レインボー稼働データ・安定処理アプリ")
+st.title("🌈 レインボー稼働データ・OCR抽出アプリ")
 st.write("スロットの稼働データ画像を処理し、指定通りのフォーマットで集計・CSV出力します。")
 
 # --- サイドバー：日付や営業時間の入力設定 ---
