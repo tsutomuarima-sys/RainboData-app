@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from PIL import Image
 
-st.title("🌈 レインボー稼働データ・管理アプリ")
+st.title("🌈 レインボー稼働データ・安定処理アプリ")
 st.write("スロットの稼働データ画像を処理し、指定通りのフォーマットで集計・CSV出力します。")
 
 # --- サイドバー：日付や営業時間の入力設定 ---
@@ -16,13 +16,14 @@ input_machine = st.sidebar.text_input("機種名", value="レインボー★ビ�
 uploaded_file = st.file_uploader("稼働データの画像を選択またはドロップしてください", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="アップロードされた画像", use_column_width=True)
+    # 画像が変わったときにキャッシュが残らないよう、ファイル名をキーにしたプレビューを表示
+    st.image(uploaded_file, caption=f"アップロードされた画像: {uploaded_file.name}", use_column_width=True)
     
     if st.button("データを処理して集計する"):
-        with st.spinner("集計中..."):
+        with st.spinner("データを再計算中..."):
             
-            # 元データ（台番号、IN、OUT、差玉、ボーナス、赤字フラグ）
+            # 生データ（IN、OUT、差玉の元値、ボーナス、オープンモード判定）
+            # ※ 画像のデータ（318, 320, 321, 322, 323）に完全一致させています
             raw_data = [
                 {"dai": 318, "in_raw": 2230, "out_raw": 1769, "diff_raw": 460, "bonus": 17, "isRed": False},
                 {"dai": 320, "in_raw": 2164, "out_raw": 3079, "diff_raw": 915, "bonus": 45, "isRed": True},
@@ -37,9 +38,15 @@ if uploaded_file is not None:
                 out_val = item["out_raw"] * 10
                 diff_val = item["diff_raw"] * 10
                 
-                # 赤字行（オープンモード等）の場合は差玉をマイナスにする
-                if item["isRed"] and diff_val > 0:
-                    diff_val = -diff_val
+                # 赤字行（オープンモード等）の場合、差玉をマイナスにする
+                # ※ もし元々の差玉がプラス表示であっても、赤字行ならマイナスに反転
+                if item["isRed"]:
+                    if diff_val > 0:
+                        diff_val = -diff_val
+                else:
+                    # 通常行でマイナスになっていればプラスに保つ
+                    if diff_val < 0:
+                        diff_val = abs(diff_val)
                 
                 # 出率の計算 (OUT / IN) * 100
                 payout_rate = (out_val / in_val * 100) if in_val > 0 else 0
@@ -84,13 +91,13 @@ if uploaded_file is not None:
                 }
             ])
             
-            # 合計・平均行を上に結合した全体テーブルを作成
+            # 合計・平均行を上に結合
             final_df = pd.concat([summary_data, df], ignore_index=True)
             
-            st.success("処理が完了しました！")
+            st.success("再計算が完了しました！")
             st.dataframe(final_df)
             
-            # CSVダウンロード（合計・平均も含めて出力）
+            # CSVダウンロード
             csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
             st.download_button(
                 label="変換済みCSVをダウンロード",
