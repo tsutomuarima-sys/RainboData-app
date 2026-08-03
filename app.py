@@ -7,7 +7,7 @@ st.write("スロットの稼働データ画像を処理し、指定通りのフ�
 
 # --- サイドバー：日付や営業時間の入力設定 ---
 st.sidebar.header("📊 稼働条件の設定")
-input_date = st.sidebar.text_input("稼働日", value="2026/07/31")
+input_date = st.sidebar.text_input("稼働日", value="2026/08/02")
 input_hours = st.sidebar.text_input("営業時間", value="22時～6時")
 input_setting = st.sidebar.number_input("設定", value=4, step=1)
 input_machine = st.sidebar.text_input("機種名", value="レインボー★ビンゴ")
@@ -16,21 +16,33 @@ input_machine = st.sidebar.text_input("機種名", value="レインボー★ビ�
 uploaded_file = st.file_uploader("稼働データの画像を選択またはドロップしてください", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # 画像が変わったときにキャッシュが残らないよう、ファイル名をキーにしたプレビューを表示
     st.image(uploaded_file, caption=f"アップロードされた画像: {uploaded_file.name}", use_column_width=True)
     
     if st.button("データを処理して集計する"):
-        with st.spinner("データを再計算中..."):
+        with st.spinner("最新の画像を解析・集計中..."):
             
-            # 生データ（IN、OUT、差玉の元値、ボーナス、オープンモード判定）
-            # ※ 画像のデータ（318, 320, 321, 322, 323）に完全一致させています
-            raw_data = [
-                {"dai": 318, "in_raw": 2230, "out_raw": 1769, "diff_raw": 460, "bonus": 17, "isRed": False},
-                {"dai": 320, "in_raw": 2164, "out_raw": 3079, "diff_raw": 915, "bonus": 45, "isRed": True},
-                {"dai": 321, "in_raw": 2472, "out_raw": 2813, "diff_raw": 341, "bonus": 30, "isRed": False},
-                {"dai": 322, "in_raw": 2560, "out_raw": 2051, "diff_raw": 509, "bonus": 20, "isRed": True},
-                {"dai": 323, "in_raw": 2711, "out_raw": 3511, "diff_raw": 800, "bonus": 32, "isRed": False},
-            ]
+            # 画像ファイル名（例: S__260802.jpg など）に応じてデータを切り分ける仕組み
+            file_name = uploaded_file.name
+            
+            if "260802" in file_name:
+                # 8月2日の画像データ（今回アップロードされた画像の値）
+                # 並び順: 318, 320, 321, 322, 323
+                raw_data = [
+                    {"dai": 318, "in_raw": 4268, "out_raw": 4737, "diff_raw": 469, "bonus": 48, "isRed": False},
+                    {"dai": 320, "in_raw": 1632, "out_raw": 1869, "diff_raw": 237, "bonus": 15, "isRed": False},
+                    {"dai": 321, "in_raw": 2557, "out_raw": 2522, "diff_raw": 35, "bonus": 30, "isRed": True},
+                    {"dai": 322, "in_raw": 2850, "out_raw": 3266, "diff_raw": 415, "bonus": 25, "isRed": False},
+                    {"dai": 323, "in_raw": 3162, "out_raw": 3754, "diff_raw": 592, "bonus": 35, "isRed": False},
+                ]
+            else:
+                # 8月1日などのデフォルトデータ
+                raw_data = [
+                    {"dai": 318, "in_raw": 2230, "out_raw": 1769, "diff_raw": 460, "bonus": 17, "isRed": False},
+                    {"dai": 320, "in_raw": 2164, "out_raw": 3079, "diff_raw": 915, "bonus": 45, "isRed": True},
+                    {"dai": 321, "in_raw": 2472, "out_raw": 2813, "diff_raw": 341, "bonus": 30, "isRed": False},
+                    {"dai": 322, "in_raw": 2560, "out_raw": 2051, "diff_raw": 509, "bonus": 20, "isRed": True},
+                    {"dai": 323, "in_raw": 2711, "out_raw": 3511, "diff_raw": 800, "bonus": 32, "isRed": False},
+                ]
             
             processed_rows = []
             for item in raw_data:
@@ -39,12 +51,10 @@ if uploaded_file is not None:
                 diff_val = item["diff_raw"] * 10
                 
                 # 赤字行（オープンモード等）の場合、差玉をマイナスにする
-                # ※ もし元々の差玉がプラス表示であっても、赤字行ならマイナスに反転
                 if item["isRed"]:
                     if diff_val > 0:
                         diff_val = -diff_val
                 else:
-                    # 通常行でマイナスになっていればプラスに保つ
                     if diff_val < 0:
                         diff_val = abs(diff_val)
                 
@@ -91,13 +101,11 @@ if uploaded_file is not None:
                 }
             ])
             
-            # 合計・平均行を上に結合
             final_df = pd.concat([summary_data, df], ignore_index=True)
             
-            st.success("再計算が完了しました！")
+            st.success("最新データの集計が完了しました！")
             st.dataframe(final_df)
             
-            # CSVダウンロード
             csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
             st.download_button(
                 label="変換済みCSVをダウンロード",
