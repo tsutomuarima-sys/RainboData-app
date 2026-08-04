@@ -31,7 +31,7 @@ if uploaded_file is not None:
     if st.button("画像を解析して集計する"):
         with st.spinner("データを解析中..."):
             try:
-                # 画像の前処理（解像度アップ ＆ 2値化）
+                # 画像の前処理
                 img_array = np.array(image)
                 gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
                 gray = cv2.resize(gray, (0, 0), fx=2, fy=2)
@@ -47,30 +47,20 @@ if uploaded_file is not None:
                 raw_data = []
                 
                 for line in lines:
-                    # 日本語（入球、出球など）が含まれる行は完全にスキップ
-                    if re.search(r'[一-龥ぁ-んァ-ン]', line):
-                        continue
-                        
                     numbers = re.findall(r'\d+', line)
-                    # 台データの行は通常、台番号を含めて5つ以上の数字が並ぶ
                     if len(numbers) >= 5:
                         try:
                             first_num = int(numbers[0])
-                            # 300番台〜900番台の台番号を厳密にキャッチ（322や326なども確実に拾う）
+                            # 先頭の数字が300番台〜900番台の台番号である行は絶対に採用する
                             if 300 <= first_num <= 900:
                                 dai = first_num
-                                
-                                # データの並び順が画像によって多少揺れるケースに対応した安全抽出
-                                # 通常：[0]=台番号, [1]=OUT, [2]=IN, [3]=差玉等, [4]=0, [5]=ボーナス
-                                # 数字の数に応じて末尾や位置を調整
                                 out_raw = int(numbers[1])
                                 in_raw = int(numbers[2])
-                                bonus = int(numbers[-1]) # ボーナスは常に一番右端
+                                bonus = int(numbers[-1])
                                 
-                                # 322番台などの小さな数値（OUTが数百など）も弾かれないように条件を緩和
                                 if out_raw >= 0 and in_raw >= 0:
                                     if not any(d['dai'] == dai for d in raw_data):
-                                        # 赤字（オープンモード等）の判定：320, 322, 325, 331 など画像で赤くなっている台番号を指定
+                                        # 赤字（オープンモード等）の判定
                                         is_red = dai in [320, 322, 325, 331, 511, 512]
                                         raw_data.append({
                                             "dai": dai,
