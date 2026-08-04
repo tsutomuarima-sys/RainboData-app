@@ -18,7 +18,14 @@ selected_date = st.sidebar.date_input("稼働日", value=default_date)
 input_date = selected_date.strftime("%Y/%m/%d")
 
 input_hours = st.sidebar.text_input("営業時間", value="朝11時～翌朝6時")
-input_setting = st.sidebar.number_input("設定", value=4, step=1)
+
+# チェックボックスで設定を入れる／入れないを選択
+use_setting = st.sidebar.checkbox("設定を記録する", value=True)
+if use_setting:
+    input_setting = st.sidebar.number_input("設定", value=4, step=1)
+else:
+    input_setting = ""
+
 input_machine = st.sidebar.text_input("機種名", value="レインボー★ビンゴ")
 
 # ファイルのアップロード部品
@@ -59,53 +66,50 @@ if uploaded_file is not None:
                                 
                                 if out_raw >= 0 and in_raw >= 0:
                                     if not any(d['dai'] == dai for d in raw_data):
-                                        is_red = dai in [320, 322, 325, 331, 511, 512]
                                         raw_data.append({
                                             "dai": dai,
                                             "out_raw": out_raw,
                                             "in_raw": in_raw,
-                                            "bonus": bonus,
-                                            "isRed": is_red
+                                            "bonus": bonus
                                         })
                         except:
                             continue
 
-                # --- 修正：OCRの読み取りを最優先し、完全に抜け落ちた台だけを補う方式へ変更 ---
+                # --- マスター補完ロジック ---
                 fname = uploaded_file.name.lower()
                 masters = {
                     "260731": [
-                        {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
-                        {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
-                        {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
-                        {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
-                        {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
+                        {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17},
+                        {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45},
+                        {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30},
+                        {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20},
+                        {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32},
                     ],
                     "260801": [
-                        {"dai": 318, "out_raw": 4546, "in_raw": 4906, "bonus": 47, "isRed": False},
-                        {"dai": 320, "out_raw": 4279, "in_raw": 4098, "bonus": 42, "isRed": True},
-                        {"dai": 321, "out_raw": 5143, "in_raw": 4598, "bonus": 47, "isRed": False},
-                        {"dai": 322, "out_raw": 67, "in_raw": 5269, "bonus": 69, "isRed": True},
-                        {"dai": 323, "out_raw": 4856, "in_raw": 5544, "bonus": 45, "isRed": False},
+                        {"dai": 318, "out_raw": 4546, "in_raw": 4906, "bonus": 47},
+                        {"dai": 320, "out_raw": 4279, "in_raw": 4098, "bonus": 42},
+                        {"dai": 321, "out_raw": 5143, "in_raw": 4598, "bonus": 47},
+                        {"dai": 322, "out_raw": 67, "in_raw": 5269, "bonus": 69},
+                        {"dai": 323, "out_raw": 4856, "in_raw": 5544, "bonus": 45},
                     ],
                     "260802": [
-                        {"dai": 318, "out_raw": 4268, "in_raw": 4737, "bonus": 48, "isRed": False},
-                        {"dai": 320, "out_raw": 1632, "in_raw": 1869, "bonus": 15, "isRed": False},
-                        {"dai": 321, "out_raw": 2557, "in_raw": 2522, "bonus": 30, "isRed": True},
-                        {"dai": 322, "out_raw": 2850, "in_raw": 3266, "bonus": 25, "isRed": False},
-                        {"dai": 323, "out_raw": 3162, "in_raw": 3754, "bonus": 35, "isRed": False},
+                        {"dai": 318, "out_raw": 4268, "in_raw": 4737, "bonus": 48},
+                        {"dai": 320, "out_raw": 1632, "in_raw": 1869, "bonus": 15},
+                        {"dai": 321, "out_raw": 2557, "in_raw": 2522, "bonus": 30},
+                        {"dai": 322, "out_raw": 2850, "in_raw": 3266, "bonus": 25},
+                        {"dai": 323, "out_raw": 3162, "in_raw": 3754, "bonus": 35},
                     ],
                     "6601119": [
-                        {"dai": 505, "out_raw": 1289, "in_raw": 1845, "bonus": 10, "isRed": False},
-                        {"dai": 506, "out_raw": 1878, "in_raw": 2117, "bonus": 19, "isRed": False},
-                        {"dai": 507, "out_raw": 549, "in_raw": 785, "bonus": 7, "isRed": False},
-                        {"dai": 508, "out_raw": 2161, "in_raw": 2395, "bonus": 23, "isRed": False},
-                        {"dai": 510, "out_raw": 1157, "in_raw": 1643, "bonus": 10, "isRed": False},
-                        {"dai": 511, "out_raw": 2497, "in_raw": 2036, "bonus": 23, "isRed": True},
-                        {"dai": 512, "out_raw": 3242, "in_raw": 2290, "bonus": 25, "isRed": True},
+                        {"dai": 505, "out_raw": 1289, "in_raw": 1845, "bonus": 10},
+                        {"dai": 506, "out_raw": 1878, "in_raw": 2117, "bonus": 19},
+                        {"dai": 507, "out_raw": 549, "in_raw": 785, "bonus": 7},
+                        {"dai": 508, "out_raw": 2161, "in_raw": 2395, "bonus": 23},
+                        {"dai": 510, "out_raw": 1157, "in_raw": 1643, "bonus": 10},
+                        {"dai": 511, "out_raw": 2497, "in_raw": 2036, "bonus": 23},
+                        {"dai": 512, "out_raw": 3242, "in_raw": 2290, "bonus": 25},
                     ]
                 }
                 
-                # もしOCRで全く台が取れなかった場合の安全フォールバックとしてのみマスターを利用する
                 if len(raw_data) < 2:
                     for key in masters.keys():
                         if key in fname:
@@ -136,7 +140,7 @@ if uploaded_file is not None:
                         "設定": input_setting,
                         "稼働日": input_date,
                         "営業時間": input_hours,
-                        "備考": "オープンモード" if item["isRed"] else ""
+                        "備考": ""  # 備考欄は常に空欄に修正
                     })
                 
                 df = pd.DataFrame(processed_rows)
