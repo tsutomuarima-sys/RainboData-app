@@ -19,7 +19,6 @@ input_date = selected_date.strftime("%Y/%m/%d")
 
 input_hours = st.sidebar.text_input("営業時間", value="朝11時～翌朝6時")
 
-# チェックボックスのデフォルトを「無（False）」に設定
 use_setting = st.sidebar.checkbox("設定を記録する", value=False)
 if use_setting:
     input_setting = st.sidebar.number_input("設定", value=4, step=1)
@@ -136,7 +135,6 @@ if uploaded_file is not None:
                         "出率": f"{payout_rate:.2f}%",
                         "ボーナス回数": f"{int(item['bonus'])}"
                     }
-                    # チェックが入っているときだけ「設定」列を追加する
                     if use_setting:
                         row_data["設定"] = input_setting
                         
@@ -191,7 +189,6 @@ if uploaded_file is not None:
                         pass
                     return styles
 
-                # 存在するカラムに合わせてsubsetを動的に調整
                 center_subsets = ["ボーナス回数"]
                 if use_setting:
                     center_subsets.append("設定")
@@ -204,13 +201,50 @@ if uploaded_file is not None:
                 st.success("解析・集計が完了しました！")
                 st.dataframe(styled_df)
                 
+                # --- CSVデータおよびクリップボード用タブ区切りデータの作成 ---
                 csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-                st.download_button(
-                    label="変換済みCSVをダウンロード",
-                    data=csv,
-                    file_name=f"slot_data_{input_date.replace('/', '')}.csv",
-                    mime="text/css",
-                )
+                tsv_text = final_df.to_csv(index=False, sep='\t') # スプレッドシート貼付用（タブ区切り）
+                
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.download_button(
+                        label="📥 変換済みCSVをダウンロード",
+                        data=csv,
+                        file_name=f"slot_data_{input_date.replace('/', '')}.csv",
+                        mime="text/csv",
+                    )
+                with col2:
+                    # クリップボードに表をコピーするHTML/JSボタン
+                    safe_tsv = tsv_text.replace('\n', '\\n').replace('"', '\\"')
+                    copy_button_html = f"""
+                    <script>
+                    function copyToClipboard() {{
+                        const text = `{tsv_text}`;
+                        navigator.clipboard.writeText(text).then(function() {
+                            alert("表のデータをクリップボードにコピーしました！スプレッドシートで Ctrl+V で貼り付けられます。");
+                        }, function(err) {
+                            alert("コピーに失敗しました: " + err);
+                        });
+                    }
+                    </script>
+                    <button onclick="copyToClipboard()" style="
+                        background-color: #ffffff;
+                        color: #31333F;
+                        border: 1px solid #d0d0d0;
+                        padding: 0.45rem 0.75rem;
+                        font-weight: 400;
+                        font-size: 14px;
+                        border-radius: 0.375rem;
+                        cursor: pointer;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        height: 38px;
+                    ">
+                        📋 表をコピー (スプレッドシート用)
+                    </button>
+                    """
+                    st.components.v1.html(copy_button_html, height=50)
                 
             except Exception as e:
                 st.error(f"解析中にエラーが発生しました: {e}")
