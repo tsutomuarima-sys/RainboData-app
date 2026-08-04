@@ -19,12 +19,10 @@ input_date = selected_date.strftime("%Y/%m/%d")
 
 input_hours = st.sidebar.text_input("営業時間", value="朝11時～翌朝6時")
 
-# チェックボックスで設定を入れる／入れないを選択
-use_setting = st.sidebar.checkbox("設定を記録する", value=True)
+# チェックボックスのデフォルトを「無（False）」に設定
+use_setting = st.sidebar.checkbox("設定を記録する", value=False)
 if use_setting:
     input_setting = st.sidebar.number_input("設定", value=4, step=1)
-else:
-    input_setting = ""
 
 input_machine = st.sidebar.text_input("機種名", value="レインボー★ビンゴ")
 
@@ -129,19 +127,25 @@ if uploaded_file is not None:
                     diff_val = in_val - out_val
                     payout_rate = (out_val / in_val * 100) if in_val > 0 else 0
                     
-                    processed_rows.append({
+                    row_data = {
                         "台番号": item["dai"],
                         "機種名": input_machine,
                         "IN": in_val,
                         "OUT": out_val,
                         "差玉": diff_val,
                         "出率": f"{payout_rate:.2f}%",
-                        "ボーナス回数": f"{int(item['bonus'])}",
-                        "設定": input_setting,
+                        "ボーナス回数": f"{int(item['bonus'])}"
+                    }
+                    # チェックが入っているときだけ「設定」列を追加する
+                    if use_setting:
+                        row_data["設定"] = input_setting
+                        
+                    row_data.update({
                         "稼働日": input_date,
                         "営業時間": input_hours,
-                        "備考": ""  # 備考欄は常に空欄に修正
+                        "備考": ""
                     })
+                    processed_rows.append(row_data)
                 
                 df = pd.DataFrame(processed_rows)
                 
@@ -158,20 +162,23 @@ if uploaded_file is not None:
                 avg_rate = (avg_out / avg_in * 100) if avg_in > 0 else 0
                 avg_bonus = round(df["ボーナス回数"].astype(int).mean(), 1)
                 
-                summary_rows = [
-                    {
-                        "台番号": "合計", "機種名": "", "IN": total_in, "OUT": total_out, 
-                        "差玉": total_diff, "出率": f"{total_rate:.2f}%", "ボーナス回数": f"{total_bonus}",
-                        "設定": "", "稼働日": "", "営業時間": "", "備考": ""
-                    },
-                    {
-                        "台番号": "平均", "機種名": "", "IN": avg_in, "OUT": avg_out, 
-                        "差玉": avg_diff, "出率": f"{avg_rate:.2f}%", "ボーナス回数": f"{avg_bonus}",
-                        "設定": "", "稼働日": "", "営業時間": "", "備考": ""
-                    }
-                ]
+                summary_row1 = {
+                    "台番号": "合計", "機種名": "", "IN": total_in, "OUT": total_out, 
+                    "差玉": total_diff, "出率": f"{total_rate:.2f}%", "ボーナス回数": f"{total_bonus}"
+                }
+                summary_row2 = {
+                    "台番号": "平均", "機種名": "", "IN": avg_in, "OUT": avg_out, 
+                    "差玉": avg_diff, "出率": f"{avg_rate:.2f}%", "ボーナス回数": f"{avg_bonus}"
+                }
                 
-                summary_df = pd.DataFrame(summary_rows)
+                if use_setting:
+                    summary_row1["設定"] = ""
+                    summary_row2["設定"] = ""
+                    
+                summary_row1.update({"稼働日": "", "営業時間": "", "備考": ""})
+                summary_row2.update({"稼働日": "", "営業時間": "", "備考": ""})
+                
+                summary_df = pd.DataFrame([summary_row1, summary_row2])
                 final_df = pd.concat([summary_df[df.columns], df], ignore_index=True)
                 
                 def style_dataframe(row):
@@ -184,8 +191,13 @@ if uploaded_file is not None:
                         pass
                     return styles
 
+                # 存在するカラムに合わせてsubsetを動的に調整
+                center_subsets = ["ボーナス回数"]
+                if use_setting:
+                    center_subsets.append("設定")
+
                 styled_df = final_df.style.apply(style_dataframe, axis=1).set_properties(
-                    subset=["ボーナス回数", "設定"], 
+                    subset=center_subsets, 
                     props="text-align: center;"
                 )
                 
