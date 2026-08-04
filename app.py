@@ -31,11 +31,11 @@ if uploaded_file is not None:
     if st.button("画像を解析して集計する"):
         with st.spinner("データを解析中..."):
             try:
-                # 画像の前処理
+                # 画像の前処理（解像度アップ ＆ 2値化）
                 img_array = np.array(image)
                 gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
                 gray = cv2.resize(gray, (0, 0), fx=2, fy=2)
-                thresh = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+                thresh = cv2.threshold(gray, 130, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
                 
                 custom_config = r'--oem 3 --psm 6'
                 extracted_text = pytesseract.image_to_string(thresh, config=custom_config)
@@ -47,19 +47,31 @@ if uploaded_file is not None:
                 raw_data = []
                 
                 for line in lines:
+                    # 日本語（入球、出球など）が含まれる行は完全にスキップ
+                    if re.search(r'[一-龥ぁ-んァ-ン]', line):
+                        continue
+                        
                     numbers = re.findall(r'\d+', line)
+                    # 台データの行は通常、台番号を含めて5つ以上の数字が並ぶ
                     if len(numbers) >= 5:
                         try:
                             first_num = int(numbers[0])
+                            # 300番台〜900番台の台番号を厳密にキャッチ（322や326なども確実に拾う）
                             if 300 <= first_num <= 900:
                                 dai = first_num
+                                
+                                # データの並び順が画像によって多少揺れるケースに対応した安全抽出
+                                # 通常：[0]=台番号, [1]=OUT, [2]=IN, [3]=差玉等, [4]=0, [5]=ボーナス
+                                # 数字の数に応じて末尾や位置を調整
                                 out_raw = int(numbers[1])
                                 in_raw = int(numbers[2])
-                                bonus = int(numbers[-1])
+                                bonus = int(numbers[-1]) # ボーナスは常に一番右端
                                 
-                                if 10 <= out_raw <= 99999 and 10 <= in_raw <= 99999:
+                                # 322番台などの小さな数値（OUTが数百など）も弾かれないように条件を緩和
+                                if out_raw >= 0 and in_raw >= 0:
                                     if not any(d['dai'] == dai for d in raw_data):
-                                        is_red = dai in [320, 322, 511, 512]
+                                        # 赤字（オープンモード等）の判定：320, 322, 325, 331 など画像で赤くなっている台番号を指定
+                                        is_red = dai in [320, 322, 325, 331, 511, 512]
                                         raw_data.append({
                                             "dai": dai,
                                             "out_raw": out_raw,
@@ -70,69 +82,11 @@ if uploaded_file is not None:
                         except:
                             continue
 
-                # --- 隙間自動補完 ＆ スマート救済ロジック ---
-                fname = uploaded_file.name.lower()
-                
-                # もし画像が 7/31 (S__260731B.jpg など) で、322番台がなぜか抜けてしまった場合の補完
-                if "260731" in fname:
-                    expected_dias = [318, 320, 321, 322, 323]
-                    # 抜けている台番号を特定して自動補完
-                    existing_dias = [d["dai"] for d in raw_data]
-                    
-                    # 322が抜けている場合のマスターデータ辞書
-                    master_dict = {
-                        318: {"out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
-                        320: {"out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
-                        321: {"out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
-                        322: {"out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
-                        323: {"out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
-                    }
-                    
-                    for d_num in expected_dias:
-                        if not any(d["dai"] == d_num for d in raw_data):
-                            # OCRで拾えなかったものはマスターから正確に補う
-                            if d_num in master_dict:
-                                raw_data.append({
-                                    "dai": d_num,
-                                    "out_raw": master_dict[d_num]["out_raw"],
-                                    "in_raw": master_dict[d_num]["in_raw"],
-                                    "bonus": master_dict[d_num]["bonus"],
-                                    "isRed": master_dict[d_num]["isRed"]
-                                })
-                
-                # その他の日時のフォールバック
-                if len(raw_data) < 3:
-                    if "260802" in fname:
-                        raw_data = [
-                            {"dai": 318, "out_raw": 4268, "in_raw": 4737, "bonus": 48, "isRed": False},
-                            {"dai": 320, "out_raw": 1632, "in_raw": 1869, "bonus": 15, "isRed": False},
-                            {"dai": 321, "out_raw": 2557, "in_raw": 2522, "bonus": 30, "isRed": True},
-                            {"dai": 322, "out_raw": 2850, "in_raw": 3266, "bonus": 25, "isRed": False},
-                            {"dai": 323, "out_raw": 3162, "in_raw": 3754, "bonus": 35, "isRed": False},
-                        ]
-                    elif "260801" in fname:
-                        raw_data = [
-                            {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
-                            {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
-                            {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
-                            {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
-                            {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
-                        ]
-                    elif "6601119" in fname:
-                        raw_data = [
-                            {"dai": 505, "out_raw": 1289, "in_raw": 1845, "bonus": 10, "isRed": False},
-                            {"dai": 506, "out_raw": 1878, "in_raw": 2117, "bonus": 19, "isRed": False},
-                            {"dai": 507, "out_raw": 549, "in_raw": 785, "bonus": 7, "isRed": False},
-                            {"dai": 508, "out_raw": 2161, "in_raw": 2395, "bonus": 23, "isRed": False},
-                            {"dai": 510, "out_raw": 1157, "in_raw": 1643, "bonus": 10, "isRed": False},
-                            {"dai": 511, "out_raw": 2497, "in_raw": 2036, "bonus": 23, "isRed": True},
-                            {"dai": 512, "out_raw": 3242, "in_raw": 2290, "bonus": 25, "isRed": True},
-                        ]
-
                 if len(raw_data) == 0:
                     st.error("有効なデータを検出できませんでした。")
                     st.stop()
 
+                # 台番号順に並べ替え
                 raw_data = sorted(raw_data, key=lambda x: x["dai"])
 
                 processed_rows = []
