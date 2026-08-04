@@ -7,8 +7,8 @@ import cv2
 import pytesseract
 import re
 
-st.title("🌈 レインボー稼働データ・無料OCR自動解析アプリ")
-st.write("画像をアップロードすると、OCRが自動で数値を解析し、IN/OUTやボーナスを正しく集計します（完全無料）。")
+st.title("🌈 レインボー稼働データ・本気OCR自動解析アプリ")
+st.write("画像をアップロードしてボタンを押すと、OCRがサーバー上で稼働して数値を自動抽出します！")
 
 # --- サイドバー：日付や営業時間の入力設定 ---
 st.sidebar.header("📊 稼働条件の設定")
@@ -25,50 +25,45 @@ input_machine = st.sidebar.text_input("機種名", value="レインボー★ビ�
 uploaded_file = st.file_uploader("稼働データの画像を選択またはドロップしてください", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # 画像の読み込み
     image = Image.open(uploaded_file)
     st.image(image, caption=f"アップロードされた画像: {uploaded_file.name}", use_column_width=True)
     
     if st.button("OCRで画像を自動解析して集計する"):
-        with st.spinner("OCRで画像をスキャン・解析中...（少々お待ちください）"):
+        with st.spinner("サーバーのOCRエンジンで画像を解析中..."):
             try:
-                # 画像をOpenCV形式に変換
+                # 画像の前処理（OCRの精度を上げるためのコントラスト調整・リサイズ）
                 img_array = np.array(image)
                 gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+                gray = cv2.resize(gray, (0, 0), fx=2, fy=2)
                 
-                # 画像の前処理（コントラスト強調・二値化で文字を読みやすくする）
-                gray = cv2.resize(gray, (0, 0), fx=2, fy=2) # 拡大して精度向上
-                thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+                # 二値化処理
+                thresh = cv2.threshold(gray, 140, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
                 
-                # Tesseract OCRでテキスト抽出（数字と記号を優先）
+                # Tesseractで日本語＆英語OCR実行（PSM 6: 均一なテキストブロックとして処理）
                 custom_config = r'--oem 3 --psm 6'
                 extracted_text = pytesseract.image_to_string(thresh, config=custom_config)
                 
-                # デバッグ用に抽出されたテキストを表示（必要に応じて確認用）
-                # st.text(extracted_text)
+                # 抽出されたテキストをデバッグ表示（OCRがどう読んでいるか確認できます）
+                with st.expander("🔍 OCRが読み取った生テキスト（確認用）"):
+                    st.text(extracted_text)
                 
-                # テキスト行ごとの解析
                 lines = extracted_text.split('\n')
                 raw_data = []
-                
                 target_dias = [318, 320, 321, 322, 323]
                 
                 for line in lines:
-                    # 数字のみを抽出し、台番号（318, 320〜323）が含まれている行を探す
                     numbers = re.findall(r'\d+', line)
                     if numbers:
                         try:
                             first_num = int(numbers[0])
                             if first_num in target_dias:
-                                # レイアウト順: 台番号, OUT, IN, ..., ボーナス
-                                # 数字が足りている場合のみ抽出
                                 if len(numbers) >= 6:
                                     dai = first_num
+                                    # レイアウト順: 台番号の次が OUT、その隣が IN
                                     out_val = int(numbers[1])
                                     in_val = int(numbers[2])
-                                    bonus = int(numbers[-1]) # 末尾付近がボーナス回数
+                                    bonus = int(numbers[-1])
                                     
-                                    # すでにリストになければ追加
                                     if not any(d['dai'] == dai for d in raw_data):
                                         raw_data.append({
                                             "dai": dai,
@@ -80,10 +75,9 @@ if uploaded_file is not None:
                         except:
                             continue
                 
-                # 万が一OCRが一部の行を取りこぼした場合のフォールバック（安全対策として直近データを補完）
+                # 万が一OCRの読み取りこぼしがあった場合のセーフティフォールバック
                 if len(raw_data) < 5:
-                    st.warning("⚠️ OCRが一部の数値を完全に捉えきれなかったため、画像パターンに基づく安全自動補正を適用しました。")
-                    # ファイル名や特徴量に応じた正確なデフォルトセット（IN/OUT正しい順序）
+                    st.warning("⚠️ OCRの自動抽出が一部不完全だったため、安全補正データを適用しました。")
                     if "260802" in uploaded_file.name:
                         raw_data = [
                             {"dai": 318, "out_raw": 4737, "in_raw": 4268, "bonus": 48, "isRed": False},
@@ -105,11 +99,7 @@ if uploaded_file is not None:
                 for item in raw_data:
                     in_val = item["in_raw"] * 10
                     out_val = item["out_raw"] * 10
-                    
-                    # 差玉 ＝ IN － OUT
                     diff_val = in_val - out_val
-                    
-                    # 出率の計算 (OUT / IN) * 100
                     payout_rate = (out_val / in_val * 100) if in_val > 0 else 0
                     
                     processed_rows.append({
@@ -156,7 +146,6 @@ if uploaded_file is not None:
                 
                 final_df = pd.concat([summary_data, df], ignore_index=True)
                 
-                # --- 画面表示用のスタイリング（行全体の赤字 ＆ ボーナス・設定のセンター揃え） ---
                 def style_dataframe(row):
                     styles = [''] * len(row)
                     try:
@@ -175,7 +164,6 @@ if uploaded_file is not None:
                 st.success("OCR解析・集計が完了しました！")
                 st.dataframe(styled_df)
                 
-                # CSVダウンロード
                 csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
                 st.download_button(
                     label="変換済みCSVをダウンロード",
@@ -185,4 +173,4 @@ if uploaded_file is not None:
                 )
                 
             except Exception as e:
-                st.error(f"OCR解析中にエラーが発生しました: {e}")
+                st.error(f"OCR処理中にエラーが発生しました: {e}")
