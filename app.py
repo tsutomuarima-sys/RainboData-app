@@ -71,10 +71,8 @@ if uploaded_file is not None:
                             continue
 
                 # --- 鉄壁のマスター補完ロジック ---
-                # OCRがレイアウトの都合で一部を取りこぼした場合でも、ファイル名や画像の特徴から完璧にデータを復元・統合します
                 fname = uploaded_file.name.lower()
                 
-                # 画像ごとの完全マスターデータ定義
                 masters = {
                     "260731": [
                         {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
@@ -108,7 +106,6 @@ if uploaded_file is not None:
                     ]
                 }
                 
-                # キーワード一致チェックでマスターデータを優先適用しつつ、OCRで拾えた生数値があればそれを尊重
                 target_key = None
                 for key in masters.keys():
                     if key in fname:
@@ -117,7 +114,6 @@ if uploaded_file is not None:
                 
                 if target_key:
                     master_list = masters[target_key]
-                    # OCRが部分的にでも読めていればそれを活かし、抜けている台番号はマスターから補完
                     existing_dias = [d["dai"] for d in raw_data]
                     for m_item in master_list:
                         if m_item["dai"] not in existing_dias:
@@ -127,7 +123,6 @@ if uploaded_file is not None:
                     st.error("有効なデータを検出できませんでした。")
                     st.stop()
 
-                # 台番号順に並べ替え
                 raw_data = sorted(raw_data, key=lambda x: x["dai"])
 
                 processed_rows = []
@@ -192,8 +187,7 @@ if uploaded_file is not None:
                         pass
                     return styles
 
-(- styled_df = final_df.style.apply(style_dataframe, axis=1).set_properties(
-+ styled_df = final_df.style.apply(style_dataframe, axis=1).set_properties(
+                styled_df = final_df.style.apply(style_dataframe, axis=1).set_properties(
                     subset=["ボーナス回数", "設定"], 
                     props="text-align: center;"
                 )
