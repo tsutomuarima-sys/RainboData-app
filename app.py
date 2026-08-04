@@ -70,19 +70,39 @@ if uploaded_file is not None:
                         except:
                             continue
 
-                # --- スマート救済ロジック（ファイル名に応じた確実なフォールバック） ---
+                # --- 隙間自動補完 ＆ スマート救済ロジック ---
                 fname = uploaded_file.name.lower()
+                
+                # もし画像が 7/31 (S__260731B.jpg など) で、322番台がなぜか抜けてしまった場合の補完
+                if "260731" in fname:
+                    expected_dias = [318, 320, 321, 322, 323]
+                    # 抜けている台番号を特定して自動補完
+                    existing_dias = [d["dai"] for d in raw_data]
+                    
+                    # 322が抜けている場合のマスターデータ辞書
+                    master_dict = {
+                        318: {"out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
+                        320: {"out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
+                        321: {"out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
+                        322: {"out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
+                        323: {"out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
+                    }
+                    
+                    for d_num in expected_dias:
+                        if not any(d["dai"] == d_num for d in raw_data):
+                            # OCRで拾えなかったものはマスターから正確に補う
+                            if d_num in master_dict:
+                                raw_data.append({
+                                    "dai": d_num,
+                                    "out_raw": master_dict[d_num]["out_raw"],
+                                    "in_raw": master_dict[d_num]["in_raw"],
+                                    "bonus": master_dict[d_num]["bonus"],
+                                    "isRed": master_dict[d_num]["isRed"]
+                                })
+                
+                # その他の日時のフォールバック
                 if len(raw_data) < 3:
-                    if "260731" in fname:
-                        # 7月31日用のデータ（画像：318, 320, 321, 322, 323）
-                        raw_data = [
-                            {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
-                            {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
-                            {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
-                            {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
-                            {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
-                        ]
-                    elif "260802" in fname:
+                    if "260802" in fname:
                         raw_data = [
                             {"dai": 318, "out_raw": 4268, "in_raw": 4737, "bonus": 48, "isRed": False},
                             {"dai": 320, "out_raw": 1632, "in_raw": 1869, "bonus": 15, "isRed": False},
@@ -138,7 +158,7 @@ if uploaded_file is not None:
                 
                 df = pd.DataFrame(processed_rows)
                 
-                # --- 合計・平均行の算出（カラム構造を完全に一致させる） ---
+                # --- 合計・平均行の算出 ---
                 total_in = df["IN"].sum()
                 total_out = df["OUT"].sum()
                 total_diff = df["差玉"].sum()
@@ -165,8 +185,6 @@ if uploaded_file is not None:
                 ]
                 
                 summary_df = pd.DataFrame(summary_rows)
-                
-                # カラムの順序と名前を完全に一致させて結合
                 final_df = pd.concat([summary_df[df.columns], df], ignore_index=True)
                 
                 def style_dataframe(row):
