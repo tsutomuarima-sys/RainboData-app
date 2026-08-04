@@ -203,7 +203,7 @@ if uploaded_file is not None:
                 
                 # --- CSVデータおよびクリップボード用タブ区切りデータの作成 ---
                 csv = final_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-                tsv_text = final_df.to_csv(index=False, sep='\t') # スプレッドシート貼付用（タブ区切り）
+                tsv_text = final_df.to_csv(index=False, sep='\t')
                 
                 col1, col2 = st.columns([1, 3])
                 with col1:
@@ -214,18 +214,17 @@ if uploaded_file is not None:
                         mime="text/csv",
                     )
                 with col2:
-                    # クリップボードに表をコピーするHTML/JSボタン
                     safe_tsv = tsv_text.replace('\n', '\\n').replace('"', '\\"')
                     copy_button_html = f"""
                     <script>
                     function copyToClipboard() {{
                         const text = `{tsv_text}`;
-                        navigator.clipboard.writeText(text).then(function() {
+                        navigator.clipboard.writeText(text).then(function() {{
                             alert("表のデータをクリップボードにコピーしました！スプレッドシートで Ctrl+V で貼り付けられます。");
-                        }, function(err) {
+                        }}, function(err) {{
                             alert("コピーに失敗しました: " + err);
-                        });
-                    }
+                        }});
+                    }}
                     </script>
                     <button onclick="copyToClipboard()" style="
                         background-color: #ffffff;
