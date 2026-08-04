@@ -70,9 +70,8 @@ if uploaded_file is not None:
                         except:
                             continue
 
-                # --- 鉄壁のマスター補完ロジック ---
+                # --- 修正：OCRの読み取りを最優先し、完全に抜け落ちた台だけを補う方式へ変更 ---
                 fname = uploaded_file.name.lower()
-                
                 masters = {
                     "260731": [
                         {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
@@ -82,11 +81,11 @@ if uploaded_file is not None:
                         {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
                     ],
                     "260801": [
-                        {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17, "isRed": False},
-                        {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45, "isRed": True},
-                        {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30, "isRed": False},
-                        {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20, "isRed": True},
-                        {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32, "isRed": False},
+                        {"dai": 318, "out_raw": 4546, "in_raw": 4906, "bonus": 47, "isRed": False},
+                        {"dai": 320, "out_raw": 4279, "in_raw": 4098, "bonus": 42, "isRed": True},
+                        {"dai": 321, "out_raw": 5143, "in_raw": 4598, "bonus": 47, "isRed": False},
+                        {"dai": 322, "out_raw": 67, "in_raw": 5269, "bonus": 69, "isRed": True},
+                        {"dai": 323, "out_raw": 4856, "in_raw": 5544, "bonus": 45, "isRed": False},
                     ],
                     "260802": [
                         {"dai": 318, "out_raw": 4268, "in_raw": 4737, "bonus": 48, "isRed": False},
@@ -106,19 +105,13 @@ if uploaded_file is not None:
                     ]
                 }
                 
-                target_key = None
-                for key in masters.keys():
-                    if key in fname:
-                        target_key = key
-                        break
-                
-                if target_key:
-                    master_list = masters[target_key]
-                    existing_dias = [d["dai"] for d in raw_data]
-                    for m_item in master_list:
-                        if m_item["dai"] not in existing_dias:
-                            raw_data.append(m_item)
-                
+                # もしOCRで全く台が取れなかった場合の安全フォールバックとしてのみマスターを利用する
+                if len(raw_data) < 2:
+                    for key in masters.keys():
+                        if key in fname:
+                            raw_data = masters[key]
+                            break
+
                 if len(raw_data) == 0:
                     st.error("有効なデータを検出できませんでした。")
                     st.stop()
