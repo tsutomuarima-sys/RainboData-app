@@ -75,6 +75,13 @@ if uploaded_file is not None:
                 # --- マスター補完ロジック ---
                 fname = uploaded_file.name.lower()
                 masters = {
+                    "66060293": [
+                        {"dai": 318, "out_raw": 4509, "in_raw": 4626, "bonus": 46},
+                        {"dai": 320, "out_raw": 1930, "in_raw": 1705, "bonus": 15},
+                        {"dai": 321, "out_raw": 1499, "in_raw": 1761, "bonus": 10},
+                        {"dai": 322, "out_raw": 1582, "in_raw": 1734, "bonus": 16},
+                        {"dai": 323, "out_raw": 2977, "in_raw": 2916, "bonus": 33},
+                    ],
                     "260731": [
                         {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17},
                         {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45},
