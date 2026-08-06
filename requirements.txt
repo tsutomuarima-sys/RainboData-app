@@ -1,6 +1,7 @@
 streamlit
-google-genai
 pandas
 pillow
 numpy
 opencv-python
+pytesseract
+google-generativeai
