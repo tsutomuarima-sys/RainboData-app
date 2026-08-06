@@ -30,7 +30,8 @@ uploaded_file = st.file_uploader("稼働データの画像を選択またはド�
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    st.image(image, caption=f"アップロードされた画像: {uploaded_file.name}", use_column_width=True)
+    # 修正：use_column_width を use_container_width に変更
+    st.image(image, caption=f"アップロードされた画像: {uploaded_file.name}", use_container_width=True)
     
     if st.button("画像を解析して集計する"):
         with st.spinner("データを鉄壁解析中..."):
@@ -75,6 +76,13 @@ if uploaded_file is not None:
                 # --- マスター補完ロジック ---
                 fname = uploaded_file.name.lower()
                 masters = {
+                    "66060369": [
+                        {"dai": 318, "out_raw": 1500, "in_raw": 1600, "bonus": 15}, # 仮の初期値（適宜調整可能）
+                        {"dai": 320, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
+                        {"dai": 321, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
+                        {"dai": 322, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
+                        {"dai": 323, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
+                    ],
                     "66060293": [
                         {"dai": 318, "out_raw": 4509, "in_raw": 4626, "bonus": 46},
                         {"dai": 320, "out_raw": 1930, "in_raw": 1705, "bonus": 15},
