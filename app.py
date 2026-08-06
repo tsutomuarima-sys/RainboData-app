@@ -11,7 +11,6 @@ st.write("画像をGemini AIのビジョン機能で直接解析し、高精度�
 # --- サイドバー：設定とAPIキー入力 ---
 st.sidebar.header("📊 稼働条件 & API設定")
 
-# APIキーの入力欄（StreamlitのSecretsがあれば自動読み込み、なければ手動入力）
 api_key_input = st.sidebar.text_input("Gemini APIキー", value=st.secrets.get("GEMINI_API_KEY", ""), type="password")
 
 default_date = datetime.now().date() - timedelta(days=1)
@@ -35,15 +34,16 @@ if uploaded_file is not None:
     
     if st.button("✨ Gemini AIで画像を解析・集計する"):
         if not api_key_input:
-            st.error("サイドバーに Gemini APIキーを入力してください。（Google AI Studioから無料で取得できます）")
+            st.error("サイドバーに Gemini APIキーを入力してください。（Google AI Studioから取得できます）")
             st.stop()
             
         with st.spinner("Gemini AIが画像を読み込んでいます..."):
             try:
                 # Gemini APIの設定
                 genai.configure(api_key=api_key_input)
-                # 高速かつ画像認識に優れたモデルを指定
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # 修正：現行の高速かつ高精度なモデルを指定
+                model = genai.GenerativeModel('gemini-2.5-flash')
                 
                 # AIへの指示プロンプト
                 prompt = """
@@ -67,7 +67,7 @@ if uploaded_file is not None:
                 response = model.generate_content([prompt, image])
                 raw_text = response.text.strip()
                 
-                # マークダウンのコードブロックが含まれている場合のクリーニング
+                # マークダウンのコードブロックが含ま場合のクリーニング
                 if raw_text.startswith("```"):
                     raw_text = raw_text.split("```")[1]
                     if raw_text.startswith("json"):
