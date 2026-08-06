@@ -2,16 +2,17 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from PIL import Image
-import numpy as np
-import cv2
-import pytesseract
-import re
+import json
+import google.generativeai as genai
 
-st.title("🌈 レインボー稼働データ・鉄壁自動解析アプリ")
-st.write("画像を解析し、確実に稼働データを自動集計・CSV出力します。")
+st.title("🌈 レインボー稼働データ・Gemini AI解析アプリ")
+st.write("画像をGemini AIのビジョン機能で直接解析し、高精度に稼働データを集計します。")
 
-# --- サイドバー：日付や営業時間の入力設定 ---
-st.sidebar.header("📊 稼働条件の設定")
+# --- サイドバー：設定とAPIキー入力 ---
+st.sidebar.header("📊 稼働条件 & API設定")
+
+# APIキーの入力欄（StreamlitのSecretsがあれば自動読み込み、なければ手動入力）
+api_key_input = st.sidebar.text_input("Gemini APIキー", value=st.secrets.get("GEMINI_API_KEY", ""), type="password")
 
 default_date = datetime.now().date() - timedelta(days=1)
 selected_date = st.sidebar.date_input("稼働日", value=default_date)
@@ -30,108 +31,59 @@ uploaded_file = st.file_uploader("稼働データの画像を選択またはド�
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
-    # 修正：use_column_width を use_container_width に変更
     st.image(image, caption=f"アップロードされた画像: {uploaded_file.name}", use_container_width=True)
     
-    if st.button("画像を解析して集計する"):
-        with st.spinner("データを鉄壁解析中..."):
+    if st.button("✨ Gemini AIで画像を解析・集計する"):
+        if not api_key_input:
+            st.error("サイドバーに Gemini APIキーを入力してください。（Google AI Studioから無料で取得できます）")
+            st.stop()
+            
+        with st.spinner("Gemini AIが画像を読み込んでいます..."):
             try:
-                # 画像の前処理
-                img_array = np.array(image)
-                gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
-                gray = cv2.resize(gray, (0, 0), fx=2, fy=2)
-                thresh = cv2.threshold(gray, 130, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+                # Gemini APIの設定
+                genai.configure(api_key=api_key_input)
+                # 高速かつ画像認識に優れたモデルを指定
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
-                custom_config = r'--oem 3 --psm 6'
-                extracted_text = pytesseract.image_to_string(thresh, config=custom_config)
+                # AIへの指示プロンプト
+                prompt = """
+                添付された稼働データの画像から、各台のデータを読み取ってください。
+                出力は必ず以下のJSON形式の配列のみで行い、余計な解説文やマークダウンのバッククォート（```json等）は含めないでください。
                 
-                with st.expander("🔍 OCRが読み取った生テキスト（デバッグ用）"):
-                    st.text(extracted_text)
+                フォーマット例:
+                [
+                  {"dai": 318, "out_raw": 1751, "in_raw": 2056, "bonus": 19},
+                  {"dai": 320, "out_raw": 1751, "in_raw": 1807, "bonus": 16}
+                ]
                 
-                lines = extracted_text.split('\n')
-                raw_data = []
+                ※注意: 
+                - dai は台番号（整数）
+                - out_raw は「出球」または「OUT」側の数値（整数）
+                - in_raw は「入球」または「IN」側の数値（整数）
+                - bonus は一番右端のボーナス回数（整数）
+                - 画像に写っている全ての台を漏れなく抽出してください。
+                """
                 
-                for line in lines:
-                    numbers = re.findall(r'\d+', line)
-                    if len(numbers) >= 5:
-                        try:
-                            first_num = int(numbers[0])
-                            if 300 <= first_num <= 900:
-                                dai = first_num
-                                out_raw = int(numbers[1])
-                                in_raw = int(numbers[2])
-                                bonus = int(numbers[-1])
-                                
-                                if out_raw >= 0 and in_raw >= 0:
-                                    if not any(d['dai'] == dai for d in raw_data):
-                                        raw_data.append({
-                                            "dai": dai,
-                                            "out_raw": out_raw,
-                                            "in_raw": in_raw,
-                                            "bonus": bonus
-                                        })
-                        except:
-                            continue
-
-                # --- マスター補完ロジック ---
-                fname = uploaded_file.name.lower()
-                masters = {
-                    "66060369": [
-                        {"dai": 318, "out_raw": 1500, "in_raw": 1600, "bonus": 15}, # 仮の初期値（適宜調整可能）
-                        {"dai": 320, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
-                        {"dai": 321, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
-                        {"dai": 322, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
-                        {"dai": 323, "out_raw": 1500, "in_raw": 1600, "bonus": 15},
-                    ],
-                    "66060293": [
-                        {"dai": 318, "out_raw": 4509, "in_raw": 4626, "bonus": 46},
-                        {"dai": 320, "out_raw": 1930, "in_raw": 1705, "bonus": 15},
-                        {"dai": 321, "out_raw": 1499, "in_raw": 1761, "bonus": 10},
-                        {"dai": 322, "out_raw": 1582, "in_raw": 1734, "bonus": 16},
-                        {"dai": 323, "out_raw": 2977, "in_raw": 2916, "bonus": 33},
-                    ],
-                    "260731": [
-                        {"dai": 318, "out_raw": 1769, "in_raw": 2230, "bonus": 17},
-                        {"dai": 320, "out_raw": 3079, "in_raw": 2164, "bonus": 45},
-                        {"dai": 321, "out_raw": 2813, "in_raw": 2472, "bonus": 30},
-                        {"dai": 322, "out_raw": 2051, "in_raw": 2560, "bonus": 20},
-                        {"dai": 323, "out_raw": 3511, "in_raw": 2711, "bonus": 32},
-                    ],
-                    "260801": [
-                        {"dai": 318, "out_raw": 4546, "in_raw": 4906, "bonus": 47},
-                        {"dai": 320, "out_raw": 4279, "in_raw": 4098, "bonus": 42},
-                        {"dai": 321, "out_raw": 5143, "in_raw": 4598, "bonus": 47},
-                        {"dai": 322, "out_raw": 67, "in_raw": 5269, "bonus": 69},
-                        {"dai": 323, "out_raw": 4856, "in_raw": 5544, "bonus": 45},
-                    ],
-                    "260802": [
-                        {"dai": 318, "out_raw": 4268, "in_raw": 4737, "bonus": 48},
-                        {"dai": 320, "out_raw": 1632, "in_raw": 1869, "bonus": 15},
-                        {"dai": 321, "out_raw": 2557, "in_raw": 2522, "bonus": 30},
-                        {"dai": 322, "out_raw": 2850, "in_raw": 3266, "bonus": 25},
-                        {"dai": 323, "out_raw": 3162, "in_raw": 3754, "bonus": 35},
-                    ],
-                    "6601119": [
-                        {"dai": 505, "out_raw": 1289, "in_raw": 1845, "bonus": 10},
-                        {"dai": 506, "out_raw": 1878, "in_raw": 2117, "bonus": 19},
-                        {"dai": 507, "out_raw": 549, "in_raw": 785, "bonus": 7},
-                        {"dai": 508, "out_raw": 2161, "in_raw": 2395, "bonus": 23},
-                        {"dai": 510, "out_raw": 1157, "in_raw": 1643, "bonus": 10},
-                        {"dai": 511, "out_raw": 2497, "in_raw": 2036, "bonus": 23},
-                        {"dai": 512, "out_raw": 3242, "in_raw": 2290, "bonus": 25},
-                    ]
-                }
+                response = model.generate_content([prompt, image])
+                raw_text = response.text.strip()
                 
-                if len(raw_data) < 2:
-                    for key in masters.keys():
-                        if key in fname:
-                            raw_data = masters[key]
-                            break
-
+                # マークダウンのコードブロックが含まれている場合のクリーニング
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.split("```")[1]
+                    if raw_text.startswith("json"):
+                        raw_text = raw_text[4:]
+                raw_text = raw_text.strip()
+                
+                with st.expander("🔍 Gemini AIが返した生データ（デバッグ用）"):
+                    st.text(raw_text)
+                
+                raw_data = json.loads(raw_text)
+                
                 if len(raw_data) == 0:
                     st.error("有効なデータを検出できませんでした。")
                     st.stop()
 
+                # 台番号順に並べ替え
                 raw_data = sorted(raw_data, key=lambda x: x["dai"])
 
                 processed_rows = []
@@ -213,7 +165,7 @@ if uploaded_file is not None:
                     props="text-align: center;"
                 )
                 
-                st.success("解析・集計が完了しました！")
+                st.success("Gemini AIによる解析・集計が完了しました！")
                 st.dataframe(styled_df)
                 
                 # --- CSVデータおよびクリップボード用タブ区切りデータの作成 ---
