@@ -1,6 +1,6 @@
 streamlit
+google-genai
 pandas
-Pillow
+pillow
 numpy
-pytesseract
-opencv-python-headless
+opencv-python
